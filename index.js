@@ -5,14 +5,31 @@ var camera, scene, renderer;
 
 var earthMesh;
 var video, videoTexture,videoMaterial;
+var mouseCoords = new THREE.Vector2();
+var raycaster = new THREE.Raycaster();
 var stars = [];
 var starMeshes = [];
+var pos = new THREE.Vector3();
+var quat = new THREE.Quaternion();
 var particleSystem;
 var particles = [];
 var r = 6000;
 var x = 10;
 var start_time = Date.now();
 var clock = new THREE.Clock();
+var time = 0;
+
+// Physics variables
+var gravityConstant = 7.8;
+var collisionConfiguration;
+var dispatcher;
+var broadphase;
+var solver;
+var physicsWorld;
+var margin = 0.05;
+var rigidBodies = [];
+var transformAux1 = new Ammo.btTransform();
+var tempBtVec3_1 = new Ammo.btVector3( 0, 0, 0 );
 
 var composer;
 var shaderTime = 0;
@@ -26,6 +43,8 @@ var pnoise, globalParams;
 var partciles = [];
 var tubeUniforms,uniforms2;
 var refractSphereCamera;
+
+var text = document.getElementById("words");
 
 
 init();
@@ -90,16 +109,27 @@ function init() {
   scene.add( light );
 
   window.addEventListener( 'resize', onWindowResize, false );
-  var controls = new THREE.OrbitControls( camera, renderer.domElement );
-  controls.target.set( 0, 1, 0 );
-  controls.update();
+  // var controls = new THREE.OrbitControls( camera, renderer.domElement );
+  // controls.target.set( 0, 1, 0 );
+  // controls.update();
 
+  initPhysics();
   skyParticles();
   tunnel();
   yellowStars();
   earthMoving();
   song();
   badTVeffect();
+}
+
+function initPhysics() {
+		// Physics configuration
+		collisionConfiguration = new Ammo.btDefaultCollisionConfiguration();
+		dispatcher = new Ammo.btCollisionDispatcher( collisionConfiguration );
+		broadphase = new Ammo.btDbvtBroadphase();
+		solver = new Ammo.btSequentialImpulseConstraintSolver();
+		physicsWorld = new Ammo.btDiscreteDynamicsWorld( dispatcher, broadphase, solver, collisionConfiguration );
+		physicsWorld.setGravity( new Ammo.btVector3( 0, 0, 0 ) );
 }
 
 function badTVeffect(){
@@ -244,6 +274,47 @@ function earthMoving() {
     scene.add(boxMesh);
 }
 
+  function createRigidBody( object, physicsShape, mass, pos, quat, vel, angVel ) {
+    if ( pos ) {
+    	object.position.copy( pos );
+    }
+    else {
+    	pos = object.position;
+    }
+    if ( quat ) {
+    	object.quaternion.copy( quat );
+    }
+    else {
+    	quat = object.quaternion;
+    }
+    var transform = new Ammo.btTransform();
+    transform.setIdentity();
+    transform.setOrigin( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
+    transform.setRotation( new Ammo.btQuaternion( quat.x, quat.y, quat.z, quat.w ) );
+    var motionState = new Ammo.btDefaultMotionState( transform );
+    var localInertia = new Ammo.btVector3( 0, 0, 0 );
+    physicsShape.calculateLocalInertia( mass, localInertia );
+    var rbInfo = new Ammo.btRigidBodyConstructionInfo( mass, motionState, physicsShape, localInertia );
+    var body = new Ammo.btRigidBody( rbInfo );
+    body.setFriction( 0.5 );
+    if ( vel ) {
+    	body.setLinearVelocity( new Ammo.btVector3( vel.x, vel.y, vel.z ) );
+    }
+    if ( angVel ) {
+    	body.setAngularVelocity( new Ammo.btVector3( angVel.x, angVel.y, angVel.z ) );
+    }
+    object.userData.physicsBody = body;
+    object.userData.collided = false;
+    scene.add( object );
+    if ( mass > 0 ) {
+    	rigidBodies.push( object );
+    	// Disable deactivation
+    	body.setActivationState( 4 );
+    }
+    physicsWorld.addRigidBody( body );
+    return body;
+	}
+
 function yellowStars(){
   var starPoints = [];
   starPoints.push( new THREE.Vector3 (  0,  16 ) );
@@ -260,15 +331,15 @@ function yellowStars(){
 
   var starShape = new THREE.Shape( starPoints );
   var extrusionSettings = {
-      amount: 5, size: 1, height: 1, curveSegments: 3,
-      bevelThickness: 1, bevelSize: 2, bevelEnabled: false,
-      material: 0, extrudeMaterial: 1
+      amount: 5, size: 0.3, height: 0.3, curveSegments: 3,
+      bevelThickness: 0.3, bevelSize: 2, bevelEnabled: false,
+      material: 0, extrudeMaterial: 0.3
   };
 
   var starGeometry = new THREE.ExtrudeGeometry( starShape, extrusionSettings );
-  for ( var i = 0; i < 40; i ++ ) {
-    stars.push( starGeometry );
-  }
+  // for ( var i = 0; i < 40; i ++ ) {
+  //   stars.push( starGeometry );
+  // }
 
   var starMaterial = new THREE.MeshPhongMaterial( {
   color: 0xFFFF00,
@@ -277,14 +348,42 @@ function yellowStars(){
   shading: THREE.SmoothShading
   } );
 
-  for ( var j = 0; j < stars.length; j ++ ) {
-    var starMesh = new THREE.Mesh( stars[j], starMaterial );
-    starMesh.position.set( THREE.Math.randInt(-50,50), THREE.Math.randInt(-420,-380), 8000 );
-    starMesh.scale.multiplyScalar( THREE.Math.randFloat(0.2,0.5) );
-    starMesh.receiveShadow = false;
-    starMeshes.push(starMesh);
-    scene.add( starMesh );
-  }
+  // for ( var j = 0; j < stars.length; j ++ ) {
+  //   var starMesh = new THREE.Mesh( stars[j], starMaterial );
+  //   starMesh.position.set( THREE.Math.randInt(-50,50), THREE.Math.randInt(-420,-380), 8000 );
+  //   starMesh.scale.multiplyScalar( THREE.Math.randFloat(0.2,0.5) );
+  //   starMesh.receiveShadow = true;
+  //   starMeshes.push(starMesh);
+  //   scene.add( starMesh );
+  // }
+
+  window.addEventListener( 'mousedown', function( event ) {
+    console.log("clicked");
+  	mouseCoords.set(
+  		( event.clientX / window.innerWidth ) * 2 - 1,
+  		- ( event.clientY / window.innerHeight ) * 2 + 1
+  	);
+  	raycaster.setFromCamera( mouseCoords, camera );
+  	// Creates a ball and throws it
+  	//var ballMass = 35;
+  	//var ballRadius = 0.4;
+    var starMesh = new THREE.Mesh( starGeometry, starMaterial );
+  	//var ball = new THREE.Mesh( new THREE.SphereGeometry( ballRadius, 14, 10 ), ballMaterial );
+  	starMesh.castShadow = true;
+  	starMesh.receiveShadow = true;
+  	var ballShape = new Ammo.btSphereShape( 0.3 );
+  	ballShape.setMargin( margin );
+  	pos.copy( raycaster.ray.direction );
+  	pos.add( raycaster.ray.origin );
+  	quat.set( 0, 0, 0, 1 );
+  	var ballBody = createRigidBody( starMesh, ballShape, 1, pos, quat );
+  	pos.copy( raycaster.ray.direction );
+  	pos.multiplyScalar( 100 );
+  	ballBody.setLinearVelocity( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
+    //ballBody.setAngularVelocity( new Ammo.btVector3(1,1,1));
+    console.log(pos);
+  }, false );
+
 }
 
 function tunnel() {
@@ -318,7 +417,21 @@ function tunnel() {
 
   var tubeMesh = new THREE.Mesh( tube, holeMaterial );
   tubeMesh.position.y = -400;
+
+  // var tubeShape = new Ammo.btCylinderShape( 0.3 );
+  // tubeShape.setMargin( margin );
+  // let transform = new Ammo.btTransform();
+  // transform.setIdentity();
+  // let pos = tubeMesh.position;
+  // transform.setOrigin( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
+  // let motionState = new Ammo.btDefaultMotionState( transform );
+  // let rbInfo = new Ammo.btRigidBodyConstructionInfo( 0.5, motionState, shape, localInertia );
+  // let body = new Ammo.btRigidBody( rbInfo );
+  // body.setFriction( 200 );
+
   scene.add( tubeMesh );
+  // rigidBodies.push( tubeMesh );
+  // physicsWorld.addRigidBody( body );
 }
 
 function skyParticles() {
@@ -346,6 +459,13 @@ function onWindowResize( event ) {
 }
 
 function animate() {
+  requestAnimationFrame( animate );
+  render();
+}
+
+function render() {
+  var deltaTime = clock.getDelta();
+  updatePhysics( deltaTime );
   if (camera.position.z <= 100) {
     shaderTime+=0.01;
     badTVPass.uniforms[ 'time' ].value =  shaderTime;
@@ -362,26 +482,26 @@ function animate() {
   r -= 100;
   earthMesh.rotation.y += 0.01;
 
-  for (var b = 0; b < starMeshes.length; b++){
-    starMeshes[b].rotation.z += 0.01;
-    starMeshes[b].rotation.x += 0.01;
-  }
+  // for (var b = 0; b < starMeshes.length; b++){
+  //   starMeshes[b].rotation.z += 0.01;
+  //   starMeshes[b].rotation.x += 0.01;
+  // }
 
-  for (var b = 0; b < starMeshes.length; b++) {
-    if (b == 0) {
-      if (starMeshes[b].position.z != 0 && camera.position.z > 6000){
-        starMeshes[b].position.z -= 2;
-      } else {
-        starMeshes[b].position.z = 8000;
-      }
-    } else {
-      if (starMeshes[b-1].position.z < 7500 && starMeshes[b].position.z != 0 && camera.position.z > 6000){
-        starMeshes[b].position.z -= 2;
-      } else {
-      starMeshes[b].position.z = 8000;
-      }
-    }
-  };
+  // for (var b = 0; b < starMeshes.length; b++) {
+  //   if (b == 0) {
+  //     if (starMeshes[b].position.z != 0){
+  //       starMeshes[b].position.z -= 2;
+  //     } else {
+  //       starMeshes[b].position.z = 8000;
+  //     }
+  //   } else {
+  //     if (starMeshes[b-1].position.z < 7500 && starMeshes[b].position.z != 0){
+  //       starMeshes[b].position.z -= 2;
+  //     } else {
+  //     starMeshes[b].position.z = 8000;
+  //     }
+  //   }
+  // };
 
   if (x == 600) {
     x = -5;
@@ -392,8 +512,6 @@ function animate() {
   if (camera.position.z > 50) {
     camera.position.z = - position + 8000;
   }
-
-  requestAnimationFrame( animate );
   if (camera.position.z <= 50){
     camera.lookAt(new THREE.Vector3(0,-400,-10 ));
     composer.render( 0.1);
@@ -401,4 +519,26 @@ function animate() {
   }else{
     renderer.render( scene, camera );
   }
+  time += deltaTime;
+}
+
+function updatePhysics( deltaTime ) {
+			// Step world
+			physicsWorld.stepSimulation( deltaTime, 10 );
+			// Update rigid bodies
+			for ( var i = 0, il = rigidBodies.length; i < il; i++ ) {
+				var objThree = rigidBodies[ i ];
+				var objPhys = objThree.userData.physicsBody;
+        let vec = new Ammo.btVector3(1,1,1);
+        objThree.userData.physicsBody.setAngularVelocity( vec );
+				var ms = objPhys.getMotionState();
+				if ( ms ) {
+					ms.getWorldTransform( transformAux1 );
+					var p = transformAux1.getOrigin();
+					var q = transformAux1.getRotation();
+					objThree.position.set( p.x(), p.y(), p.z() );
+					objThree.quaternion.set( q.x(), q.y(), q.z(), q.w() );
+					objThree.userData.collided = false;
+				}
+			}
 }

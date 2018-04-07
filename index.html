@@ -3,17 +3,35 @@
 		<title> Multiverse </title>
 		<link href="img/cloud10.png" rel="icon" />
 		<meta charset="utf-8">
+		<link href="https://fonts.googleapis.com/css?family=Roboto" rel="stylesheet">
 		<style type="text/css">
 			body {
-				background-color: #ADDBDB;
 				margin: 0px;
+				padding: 0;
+			}
+			#text{
+				position: absolute;
+				left: calc(50% - 50px);
+				top: calc(99% - 50px);
+				font-size: 20px;
+				color: white;
+				font-family: 'Roboto', sans-serif;
+				-webkit-touch-callout: none;
+				-webkit-user-select: none;
+				-khtml-user-select: none;
+				-moz-user-select: none;
+				-ms-user-select: none;
+				-o-user-select: none;
+				user-select: none;
 			}
 		</style>
 
 		<body>
 		<script src="js/three.js"></script>
 		<script src="js/Detector.js"></script>
-		<script src="js/OrbitControls.js"></script>
+		<script src="js/ammo.js"></script>
+		<script src="js/OBJLoader.js"></script>
+		<!-- <script src="js/OrbitControls.js"></script> -->
 		<script src="postprocessing/EffectComposer.js"></script>
 		<script src="postprocessing/RenderPass.js"></script>
 		<script src="postprocessing/ShaderPass.js"></script>
@@ -24,7 +42,12 @@
 		<script src="postprocessing/BadTVShader.js"></script>
 		<script src="postprocessing/StaticShader.js"></script>
 
+		<div id="text">
+			<p id="words">Click to create Stars</p>
+		</div>
 
+
+		</body>
 		<script id="vs" type="x-shader/x-vertex">
 			varying vec2 vUv;
 
@@ -83,6 +106,4 @@
 		      }
 		</script>
 		<script src="index.js"></script>
-
-	</body>
 </html>
