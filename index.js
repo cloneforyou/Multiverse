@@ -312,6 +312,7 @@ function earthMoving() {
     	body.setActivationState( 4 );
     }
     physicsWorld.addRigidBody( body );
+    console.log(body);
     return body;
 	}
 
@@ -358,7 +359,6 @@ function yellowStars(){
   // }
 
   window.addEventListener( 'mousedown', function( event ) {
-    console.log("clicked");
   	mouseCoords.set(
   		( event.clientX / window.innerWidth ) * 2 - 1,
   		- ( event.clientY / window.innerHeight ) * 2 + 1
@@ -380,8 +380,6 @@ function yellowStars(){
   	pos.copy( raycaster.ray.direction );
   	pos.multiplyScalar( 100 );
   	ballBody.setLinearVelocity( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
-    //ballBody.setAngularVelocity( new Ammo.btVector3(1,1,1));
-    console.log(pos);
   }, false );
 
 }
@@ -417,21 +415,7 @@ function tunnel() {
 
   var tubeMesh = new THREE.Mesh( tube, holeMaterial );
   tubeMesh.position.y = -400;
-
-  // var tubeShape = new Ammo.btCylinderShape( 0.3 );
-  // tubeShape.setMargin( margin );
-  // let transform = new Ammo.btTransform();
-  // transform.setIdentity();
-  // let pos = tubeMesh.position;
-  // transform.setOrigin( new Ammo.btVector3( pos.x, pos.y, pos.z ) );
-  // let motionState = new Ammo.btDefaultMotionState( transform );
-  // let rbInfo = new Ammo.btRigidBodyConstructionInfo( 0.5, motionState, shape, localInertia );
-  // let body = new Ammo.btRigidBody( rbInfo );
-  // body.setFriction( 200 );
-
   scene.add( tubeMesh );
-  // rigidBodies.push( tubeMesh );
-  // physicsWorld.addRigidBody( body );
 }
 
 function skyParticles() {
@@ -466,6 +450,7 @@ function animate() {
 function render() {
   var deltaTime = clock.getDelta();
   updatePhysics( deltaTime );
+  //console.log(physicsWorld);
   if (camera.position.z <= 100) {
     shaderTime+=0.01;
     badTVPass.uniforms[ 'time' ].value =  shaderTime;
@@ -481,27 +466,6 @@ function render() {
   tubeUniforms.time.value += 0.01;
   r -= 100;
   earthMesh.rotation.y += 0.01;
-
-  // for (var b = 0; b < starMeshes.length; b++){
-  //   starMeshes[b].rotation.z += 0.01;
-  //   starMeshes[b].rotation.x += 0.01;
-  // }
-
-  // for (var b = 0; b < starMeshes.length; b++) {
-  //   if (b == 0) {
-  //     if (starMeshes[b].position.z != 0){
-  //       starMeshes[b].position.z -= 2;
-  //     } else {
-  //       starMeshes[b].position.z = 8000;
-  //     }
-  //   } else {
-  //     if (starMeshes[b-1].position.z < 7500 && starMeshes[b].position.z != 0){
-  //       starMeshes[b].position.z -= 2;
-  //     } else {
-  //     starMeshes[b].position.z = 8000;
-  //     }
-  //   }
-  // };
 
   if (x == 600) {
     x = -5;
